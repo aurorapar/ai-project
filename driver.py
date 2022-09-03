@@ -25,28 +25,26 @@ def set_configuration_options():
 
 
 @njit
-def create_activation_layer(layer_size: int):
-    activation_layer = np.array((layer_size))
-    return activation_layer
-
-
-@njit
-def create_hidden_layer(layer_size: int):
-    x = np.random.randint(low=-10, high=10, size=(layer_size, 3))
-    y = np.random.rand(layer_size, 3)
-    hidden_layer = np.add(x, y)
-    return hidden_layer
+def create_layer(layer_size: int, weights_needed: int):
+    x = np.zeros((layer_size, 1))
+    w = np.random.rand(weights_needed, 1)
+    b = np.add(np.random.rand(weights_needed), np.random.randint(low=-10, high=10, size=(1)))
+    return x, w, b
 
 
 @njit
 def create_output_layer(layer_size: int):
-    output_layer = np.array((layer_size))
-    return output_layer
+    return np.zeros((layer_size))
 
 
 @njit
-def forward_propagate(previous_layer, current_layer):
-    current_layer[0] = np.mult(previous_layer, current_layer[1]
+def forward_propagate(a, w, b):
+    # debug(f"Propagating to layer {index+1}")
+    # in order to fit into dimension of next layer, use next layer input as first parameter
+    # z = np.sum(previous_layer[1].reshape(-1, 1) @ previous_layer[0].reshape(1, -1), axis=1)
+    z = np.sum(w @ a)
+    next_layer = np.add(z, b)
+    return next_layer
 
 
 @njit
@@ -64,9 +62,19 @@ def process_batches(network):
         error = 0
 
         for image in batch:
-            network[0] = image
+            # network[l][n=0, w=1, b=2]
+            network[0][0] = image / 255
             for layer_index in range(1, len(network)):
-                forward_propogate(network[layer_index-1], network[layer_index])
+                inputs = network[layer_index-1][0].reshape(1, -1)
+                weights = network[layer_index-1][1].reshape(-1, 1)
+                biases = network[layer_index-1][2]
+                new_output = forward_propagate(inputs, weights, biases)
+                if layer_index < len(network) - 1:
+                    network[layer_index][0] = new_output
+                else:
+                    network[layer_index] = new_output
+            debug(network[-1])
+            exit()
 
 
 if __name__ == '__main__':
@@ -82,10 +90,13 @@ if __name__ == '__main__':
     if training_label_file != mnist_data:
         assert os.path.exists(training_label_file)
 
-    net = [create_activation_layer(CONFIG['layer_sizes'][0])]
-    for layer_size_index in range(1, len(CONFIG['layer_sizes']) - 1):
-        debug(f"Creating layer of size {CONFIG['layer_sizes'][layer_size_index]}")
-        net.append(create_hidden_layer(CONFIG['layer_sizes'][layer_size_index]))
+    net = []
+    for layer_size_index in range(0, len(CONFIG['layer_sizes']) - 1):
+        new_layer = np.array(
+            (create_layer(CONFIG['layer_sizes'][layer_size_index], CONFIG['layer_sizes'][layer_size_index+1])),
+            dtype=object
+        )
+        net.append(new_layer)
     net.append(create_output_layer(CONFIG['layer_sizes'][-1]))
 
     process_batches(net)
