@@ -44,8 +44,6 @@ def forward_propagate(a, w, b):
     # z = np.sum(previous_layer[1].reshape(-1, 1) @ previous_layer[0].reshape(1, -1), axis=1)
     z = np.sum(w @ a, axis=1)
     next_layer = np.add(z, b)
-    # ReL function
-    next_layer = np.array([max(0, x) for x in next_layer])
     return next_layer
 
 
@@ -54,6 +52,21 @@ def find_loss(batch_images, batch_labels):
     loss = 0
     for test_index in range(0, len(batch_images)):
         net[0] = batch_images[test_index]
+
+
+@njit
+def relu_fn(rel_input):
+    return np.array([max(0, x) for x in rel_input])
+
+
+# @njit
+def softmax_fn(softmax_input):
+    softmax_input -= np.max(softmax_input)
+    softmax_input = np.exp(softmax_input)
+    if np.inf in softmax_input:
+        raise RuntimeError(f"Inf/Overflow detected after softmax\n\t{softmax_input}")
+    softmax_input /= np.sum(np.exp(softmax_input))
+    return softmax_input
 
 
 def process_batches(network):
@@ -73,11 +86,9 @@ def process_batches(network):
                 biases = network[layer_index-1][2]
                 new_output = forward_propagate(inputs, weights, biases)
                 if layer_index < len(network) - 1:
-                    network[layer_index][0] = new_output
+                    network[layer_index][0] = relu_fn(new_output)
                 else:
-                    network[layer_index] = new_output
-            print(network[-1])
-            exit()
+                    network[layer_index] = softmax_fn(new_output)
 
 
 if __name__ == '__main__':
