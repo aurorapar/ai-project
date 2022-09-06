@@ -71,14 +71,18 @@ def softmax_fn(softmax_input):
 
 def process_batches(network):
     images, labels = mnist_data()
+    print(f"Beginning batch processing")
+
+    processed_images = 0
+    loss = 0
+    accuracy = 0
     for batch_index in range(0, len(images), CONFIG['batch_size']):
 
         batch = images[batch_index: min(len(images), batch_index+CONFIG['batch_size']) ]
-        error = 0
 
-        for image in batch:
+        for image_index in range(0, len(batch)):
             # network[l][n=0, w=1, b=2]
-            network[0][0] = image / 255
+            network[0][0] = batch[image_index] / 255
             for layer_index in range(1, len(network)):
 
                 inputs = network[layer_index-1][0].reshape(1, -1)
@@ -89,6 +93,17 @@ def process_batches(network):
                     network[layer_index][0] = relu_fn(new_output)
                 else:
                     network[layer_index] = softmax_fn(new_output)
+
+            label_index = np.argmax(network[-1])
+            if int(label_index == labels[batch_index + image_index]):
+                accuracy += 1
+                print(f"Image {batch_index + image_index + 1} classified correctly")
+            processed_images += 1
+
+        print(f"Processed {batch_index + CONFIG['batch_size']} images")
+        print(f"Accuracy: {accuracy / processed_images * 100:.2f}%")
+
+    print(f"Total matches: {accuracy}")
 
 
 if __name__ == '__main__':
